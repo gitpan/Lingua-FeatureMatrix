@@ -11,7 +11,7 @@ BEGIN {
   # Phone can install booleans appropriately.
   @featureList = (
 		  qw( vow cons voice son ), # general
-		  qw( fric stop sib liq nas ), # cons features, usually
+		  qw( fric stop liq nas ), # cons features, usually
 		  qw( lab dent vel alv pal ), # position
 		  qw( high low front back tense ), # vow features, usually
 		  );

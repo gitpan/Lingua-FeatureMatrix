@@ -3,8 +3,7 @@ package Lingua::FeatureMatrix::Eme;
 use 5.006;
 use strict;
 use warnings;
-our $VERSION = '0.01';
-
+our $VERSION = '0.02';
 ##################################################################
 use Carp;
 use Class::MethodMaker
@@ -22,6 +21,7 @@ use Class::MethodMaker
 sub init {
   my $self = shift;
   my $class = ref($self);
+
   my %features = @_;
   if ($features{options}) {
     delete $features{options}; # any data here was only for the
@@ -30,6 +30,30 @@ sub init {
   my (%defaults) = map { $_ => 'unset' } $class->getFeatureNames();
 
   $self->hash_init(%defaults, %features);
+}
+##################################################################
+sub failsContract {
+  my $class = shift;
+  my @features;
+  eval { @features = $class->getFeatureNames(); };
+  if ($@) {
+    return "trouble calling $class->getFeatureNames(): " . $@;
+  }
+  if (not @features) {
+    return "No features listed!";
+  }
+  # check that no feature is listed twice
+  my (%features);
+  foreach my $feature (@features) {
+    if ($features{$feature}) {
+      return "listed $feature twice!"
+    }
+    $features{$feature}++;
+  }
+
+  # reaching here indicates that the class fulfils the contract,
+  # return false value
+  return '';
 }
 ##################################################################
 sub explainFeature {
@@ -104,6 +128,48 @@ sub listUserSpecified {
   }
   return @userSpecified;
 }
+##################################################################
+sub isEquivalent {
+  # returns whether this Eme is feature-equivalent to another Eme
+  # passed by argument.
+  my $self = shift;
+  my $other = shift;
+
+  # self and other better be same class
+  my $class = ref($self);
+  if (not $class eq ref($other)) {
+    croak "can't call $class->isEquivalent( ) with ", ref($other),
+      " object; use $class object for argument instead";
+  }
+
+ FEATURE:  foreach my $f ( $class->getFeatureNames() ) {
+    # if this feature not defined in one or both of the emes in question,
+    # skip the feature (they're equivalent)
+    if (not defined $self->$f) {
+      next FEATURE;
+    }
+    if (not defined $other->$f) {
+      next FEATURE;
+    }
+
+    if ($self->$f eq 'unset') {
+      warn "Can't test equivalence:\n" .
+	"feature '$f' not yet set for symbol'" . $self->name . "'\n";
+      next FEATURE;
+    }
+    elsif ($other->$f eq 'unset') {
+      warn "Can't test equivalence:\n" .
+	"feature '$f' not yet set for symbol'" . $other->name . "'\n";
+      next FEATURE;
+    }
+
+    # real comparison is here (above mostly checking for user thinkos)
+    if ($self->$f != $other->$f) {
+	return 0; # emes are distinct in at least feature $f, not equivalent
+    }
+  } # end loop over features
+  return 1; # couldn't find a distinction between these
+} #end sub isEquivalent
 ##################################################################
 sub _knowsFeature {
     my $class = shift;
@@ -199,7 +265,30 @@ C<Lingua::FeatureMatrix>):
 
 =item new
 
-TO DO: specify what the expected initialization params are.
+The new() method will construct and return an object blessed into the
+current class.  In addition, this method will initialize each element
+of the feature list (returned from the C<getFeatureList()> method)
+with the string "unset".
+
+Arguments passed to C<new()> will be treated as a hash of I<name> =>
+I<value> pairs. All keys (see exception below) will be treated as
+method names, and the method will be invoked with the corresponding
+value (this will ordinarily set the feature named I<key> to I<value>).
+
+I<NOTE>: users will probably rarely invoke this method directly, since
+the C<Lingua::FeatureMatrix> code builds these objects as needed while
+configuring itself.
+
+Note also that the key C<options> will be explicitly ignored if
+present so that subclasses can hang any special initialization values
+off that argument. This allows users to pass their special arguments
+to their subclasses via the C<eme_opts> named parameter to
+C<Lingua::FeatureMatrix->new()>.
+
+=item failsContract
+
+Lists how this class fails its own contract. By extension, indicates
+how a subclass fails the contract. Handy for sanity checking.
 
 =back
 
@@ -223,6 +312,15 @@ L<Lingua::FeatureMatrix/Implicatures> for more details.
 
 Returns whether the C<Eme> object in question has had all its features
 fully specified.
+
+=item ->isEquivalent
+
+Returns whether the C<Eme> object is equivalent to a (different)
+C<Eme> object of the same class handed in.
+
+Rejects C<Eme> objects of different classes, and issues warnings if
+any fields needed to make the decision are as yet C<unset> (though
+I<undef> fields are acceptable).
 
 =item ->listUserSpecified
 
@@ -352,6 +450,16 @@ Original version; created by h2xs 1.21 with options
 
   -CAX
 	Lingua::FeatureMatrix::Eme
+
+=item 0.02
+
+=over
+
+=item Now includes the C<failsContract()> class method.
+
+=item Now supports the C<isEquivalent()> instance method.
+
+=back
 
 =back
 

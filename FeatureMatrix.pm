@@ -7,7 +7,7 @@ use warnings;
 use Carp;
 ##################################################################
 # package globals
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 ##################################################################
 # data methods install using Class::MM
 use Class::MethodMaker
@@ -82,6 +82,10 @@ sub _setEmeType {
     croak "eme parameter to Lingua::FeatureMatrix must be a *derived* " .
       "subclass, since L::FM::Eme has abstract functions\n";
   }
+  if (my $error =$emeType->failsContract()) {
+    croak "$emeType fails to meet Lingua::FeatureMatrix::Eme contract: ",
+      $error, "\n";
+  }
 
   $self->_emeType( $emeType );
 
@@ -92,9 +96,11 @@ sub _setEmeType {
     $self->_eme_new_opts( [] );
   }
   elsif (ref($eme_new_opts) eq 'ARRAY') {
+    # it's an arrayref. that's what we want.
     $self->_eme_new_opts( $eme_new_opts );
   }
   elsif ( not ref($eme_new_opts) ) {
+    # it's a scalar. Package it up to be an arrayref anyway.
     $self->_eme_new_opts( [ $eme_new_opts ] )
   }
   else {
@@ -160,7 +166,7 @@ sub _loadFile {
       #  ( +cons => *tense )
       $self->_readImplicature($1, $2);
     }
-    elsif (/^class (\w+) \=\> (.+) $/x) {
+    elsif (/^class (\S+) \=\> (.+) $/x) {
       #  class AFF => [ +stop +fric ]
       $self->_readClass($1, $2);
     }
@@ -328,6 +334,36 @@ sub listFeatureClassMembers {
     return @symbols;
 }
 ##################################################################
+sub findEquivalentEmes {
+  my $self = shift;
+  my (@symbols) = $self->emes_keys();
+
+  # wantarray returns undef in void context
+  if (not defined wantarray()) {
+      carp "useless call to findEquivalentEmes() in void context";
+      return; # don't bother doing any work
+  }
+
+  my %problems;
+  while (@symbols) {
+    my $thisSymbol = shift @symbols;
+    my $thisEme = $self->emes($thisSymbol);
+    foreach my $otherSymbol (@symbols) {
+      if ($thisEme->isEquivalent($self->emes($otherSymbol))) {
+        $problems{$thisSymbol} = $otherSymbol;
+      }
+      # else this eme not equivalent to any remaining eme
+    } # end foreach othersymbol
+  } # end while @symbols remaining
+
+  if (wantarray()) {
+    return %problems;
+  }
+  else {
+    return (scalar(keys %problems));
+  }
+} #end findEquivalentEmes
+##################################################################
 # debugging public method
 sub dumpToText {
   # debugging function
@@ -447,11 +483,12 @@ condition for your unrestricted use (see the C<README>).
 
 Takes the following key-value named parameters:
 
-TO DO: complete this section of documentation.
-
 =over
 
 =item eme
+
+Specifies the desired C<Lingua::FeatureMatrix::Eme> subclass to use
+with this C<Lingua::FeatureMatrix>.
 
 =item eme_opts
 
@@ -467,11 +504,15 @@ TO DO: complete this section of documentation.
 
 =head2 Instance methods
 
+TO DO: complete documentation for these methods
+
 =over
 
 =item matchesFeatureClass
 
 =item listFeatureClassMembers
+
+=item findEquivalentEmes
 
 =item dumpToText
 
@@ -743,22 +784,22 @@ module. An added side bonus is that you decide whether the base unit
 is a C<Phone> or a C<Phoneme> (or, for that matter, a C<SoundUnit> or
 a C<Letter> -- that subclass is I<your> module, and the goal is to
 "[put] the focus not so much onto the problem to be solved, but rather
-onto the person trying to solve the problem." (see
-L<http://kiev.wall.org/~larry/pm.html|Perl and postmodernism>).
+onto the person trying to solve the problem." (see Larry Wall's talk
+on Perl and postmodernism L<http://kiev.wall.org/~larry/pm.html>).
 
 You, the user, define what the feature set is, and you define how the
-phones distribute among those features, using the best of
-I<Impatience> -- use the existing linguistic typographic conventions,
-and this module takes care of constructing your objects for you. No
-translating among conventions for us.
+phones (er, I<emes>) distribute among those features, using the best
+of I<Impatience> -- use the existing linguistic typographic
+conventions, and this module takes care of constructing your objects
+for you. No translating among conventions for us (that wouldn't be I<Lazy>!).
 
 But let's go one step further. Languages include redundancy, and
 sometimes it's boring (and not I<Lazy>) to have to specify yourself
 that something that is C<[+stop]> is also C<[-vow +cons]>, especially
 if you have to specify this for every single C<[+stop]> consonant.
 
-So this module also introduces the concept of an I<implicature> -- I
-can say, also in simple linguistically-familiar format, that
+So this module also introduces the concept of an I<implicature> -- you
+can say, in simple, linguistically-familiar format, that
 
   ( [+stop] => [-vow +cons] )
 
@@ -807,6 +848,20 @@ understood by somebody who hasn't read the whole code.
 Also includes a lot of documentation, among which is an elaborate
 L</Motivation>.
 
+=item 0.03
+
+=over
+
+=item Fixes for Makefile.PL dependency
+
+=item Added checks for Eme subclass contract conformity
+
+=item Better/more flexible featureclass acceptance
+
+=item Improved tests, examples
+
+=back
+
 =back
 
 =head1 Further reading
@@ -845,6 +900,10 @@ sounding board for this project.
 =head1 Future Improvements
 
 =over
+
+=item add testing cases
+
+Includes understanding why the limited test cases provided here fail.
 
 =item connect to others
 

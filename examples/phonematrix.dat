@@ -7,44 +7,63 @@
 # implicatures
 
 # note that although some of the implicatures are language universal,
-# most of these are specific to English.
+# most of these are specific to English. I make no suggestion that
+# these are accurate or even complete.
 
 ( +front => +vow )
 ( +back => +vow )
-( +high => [ +vow -cons ] )
-( +low => [ +vow -cons ] )
-( +tense => +vow )
-( -tense => +vow )
 
-( +vow => [+voice +son] )
-( +vow => [ *stop *fric *sib *nas *liq *lab *pal ] )
-
-( +stop => [ +cons -son -vow -nas -sib ] )
+( +stop => [ +cons -son -vow -nas ] )
 ( +fric => [ +cons -son -vow -nas ] )
 
-( +nas => [+voice +son] )
+( +nas => [+cons -vow +voice +son -stop -fric] )
 ( +liq => [+voice +son] )
 
 ( +nas => +cons )
-( +lab => [ +cons -sib -liq -pal ] )
+( +lab => [ +cons *liq -pal ] )
 
 # no labial affricates in English, also no labiodental stops
 ( [+lab +stop] => [-fric] )
 ( [+lab +stop -fric] => [-dent] )
+# labial *nasals are also not dental
+( [+lab +nas] => [-dent])
 
 # furthermore, labial fricatives are actually labiodental
 ( [+lab +fric] => [ +dent ])
 
+# affricates are all palatal
+( [ +stop +fric ] => [ +pal ] )
+
 # no alveolar affricates
 ( [+alv +stop] => [-fric] )
 
-( +dent => +cons )
-( +vel => +cons )
-( +alv => [ +cons *liq -dent ] )
+# velars, alveolars, and palatals never share a place of articulation
+# with others.
+( +alv => [ +cons *liq -dent -lab -vel -pal] )
+( +vel => [ +cons *liq -dent -lab -pal -alv ] )
+( +pal =>  [ +cons *liq -dent -lab -vel -alv ] )
 
-( +pal => +cons )
-( +fric => +cons )
-( +liq => +cons )
+# dentals, though, can sometimes be labial as well
+( +dent => [ +cons *liq -pal -vel -alv ])
+# labials are not velar, alveolar, or palatal but might be dental
+( [ +lab ] => [ *liq -vel -alv -pal ])
+
+# liquids are available only very narrowly:
+( +liq => [ +cons -vow -dent -stop -fric -nas -vel +alv -pal -lab ] )
+
+# also no velar fricatives in English
+( +vel => -fric )
+
+( +fric => [+cons] )
+
+# non-palatal fricatives are never affricates
+( [ -pal +fric ] => [-stop] )
+
+( +vow => [+voice +son -nas] )
+
+( [ -voice ] => [ -vow -son ] )
+
+([ -son ] => [ -nas ])
 
 ( +front => -back )
 ( +back => -front )
@@ -52,100 +71,81 @@
 
 # star here indicates "ungrammatical" for a given feature
 ( +cons => [ *tense *high *low ] )
-( +vow => [ *vel *alv *stop *fric *liq *dent ] )
+( +vow => [ *vel *alv *stop *fric *liq *dent *lab *pal] )
 
-( +low => -high )
-( +high => -low )
-
-# labials are not velar, alveolar, or palatal
-( [ +lab ] => [ -vel -alv -pal])
-# alveolars are not labial, velar, palatal
-( [ +alv ] => [ -lab -vel -pal ])
 
 # vowels and glides are the only ones what can talk about front and back
 ( [ -vow ] => [ *front *back ])
+( +low => -high )
+( +high => -low )
 
 
-    AA  [ +back +low -tense ]
-    AE  [ +front +low +tense ]
-    AO  [ -front -back +low -tense ]
+( +high => [ +vow -cons ] )
+( +low => [ +vow -cons ] )
+( +tense => +vow )
+( -tense => +vow )
+
+# just the English consonants
+
+# note +vow is implied by use of +front and +back
+    Y [ +cons +front ]
+    W [ +cons +back ]
 
     P [ +stop -voice +lab ]
-
-    W [ +cons +back ]
-    Y [ +cons +front ]
-
     B [ +stop +voice +lab ]
-    F [ -stop +fric +lab -voice ]
 
     T [ +stop -voice +alv ]
+    D [ +stop +voice +alv ]
 
-#    d [ +stop +voice +alv ]
+    K [ +stop -voice +vel ]
+    G [ +stop +voice +vel ]
 
-#    k [ +stop -voice +vel ]
+    CH [ +stop +fric -voice ]
+    J  [ +stop +fric +voice ]
 
-#    g [ +stop +voice +vel ]
+    SH [ -stop +fric +pal -voice ]
+    ZH [ -stop +fric +pal +voice ]
 
-#    C [ +stop +fric -voice ]
+    S [ +fric +alv -voice ]
+    Z [ +fric +alv +voice ]
 
-#    J [ +stop +fric +voice ]
+    F [ +fric +lab -voice ]
+    V [ +fric +lab +voice ]
 
-#    j [ +vow +cons +front ]
+    TH [ +fric +dent -lab -voice ]
+    DH [ +fric +dent -lab +voice ]
 
-#    f [ +fric +lab -voice ]
+    M [ +nas +lab ]
 
-#    v [ +fric +lab +voice ]
+    N [ +nas +alv ]
 
-#    T [ +fric +dent -voice ]
+    NG [ +nas +vel ]
 
-#    D [ +fric +dent +voice ]
+    R [ +liq ]
+    L [ +liq ]
 
-#    s [ +fric +alv -voice ]
-
-#    z [ +fric +alv +voice ]
-
-#    S [ +fric +pal -voice ]
-
-#    Z [ +fric +pal +voice ]
-
-#    m [ +nas +lab ]
-
-#    n [ +nas +alv ]
-
-#    N [ +nas +vel ]
-
-#    l [ +liq +lat ]
-
-#    w [ +vow +cons +lab +back ]
-
-#    y [ +vow +cons +pal +front ]
-
-#    h [ +cons -voice ]
+    HH [ -stop -voice +vel ]
 
 
 # filters to use in accessing these features by feature-class
 
 class VOW => [ +vow ]
 
-class VOW_PRI => [ +vow +degree ]
-
-# class VOW_SEC => [ +vow +stress -degree ]
-
-# class VOW_UNSTR => [ +vow -stress ]
-
 class CONS => [ +cons ]
 
 class STOP => [ +stop ]
 
-class VCD => [ +voice ]
+class VOICED => [ +voice ]
 
-class VCL => [ -voice ]
+class VOICELESS => [ -voice ]
 
 class CONS_VCD => [ +cons +voice ]
 
 class CONS_VLS => [ +cons -voice ]
 
 class CONS_SON => [ +cons +son ]
+
+class SIBILANT => [ +fric -dent ]
 
 class FRIC => [ +fric ]
 
@@ -159,30 +159,10 @@ class O_STOP_VCD => [ +stop -nas +voice ]
 
 class O_STOP_VLS => [ +stop -nas -voice ]
 
-#class STOP_AFF => [ +stop +fric ]
-
-#class FRIC_AFF => [ +stop +fric ]
-
 class AFF => [ +stop +fric ]
-
-class AFF_VCD => [ +stop +fric +voice ]
-
-class AFF_VLS => [ +stop +fric -voice ]
 
 class NASAL => [ +nas ]
 
 class LIQUID => [ +liq ]
 
 class GLIDE => [ +cons +vow ]
-
-#  VOWELS VOWELS_PRI VOWELS_SEC VOWELS_UNSTR ] ],
-
-#   boolean => [ qw[ CONS CONS_VCD CONS_SON CONS_VLS FRIC FRIC_VCD FRIC_VLS ] ],
-#   boolean => [ qw [ O_STOP O_STOP_VCD O_STOP_VLS STOP_AFF FRIC_AFF ] ],
-#   boolean => [ qw [ FRIC_AFF_VCD FRIC_AFF_VLS SIB SIB_VCD SIB_VLS ] ],
-
-#   boolean => [ qw [ NASAL LIQUID RHOTIC ] ],
-
-#   # vowel clusters (grouping stress-marked vowels)
-#   boolean => [ qw[ ALL_A ALL_{ ALL_V ALL_O ALL_6 ALL_3 ALL_2 ALL_E ALL_e ] ],
-#   boolean => [  'ALL_I', 'ALL_x', qw ( ALL_i ALL_o ALL_4 ALL_U ALL_u ) ];
