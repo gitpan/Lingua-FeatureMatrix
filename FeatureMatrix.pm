@@ -7,7 +7,7 @@ use Graph::Directed;
 use Carp;
 ##################################################################
 # package globals
-our $VERSION = '0.04';
+our $VERSION = '0.05';
 ##################################################################
 # data methods install using Class::MM
 use Class::MethodMaker
@@ -19,7 +19,8 @@ use Class::MethodMaker
   get_set => [ 'report', 'graph' ],
 
   get_set => 'Name',
-  object => [ Graph::Directed => 'implicature_graph' ],
+  object => [ Graph::Directed => 'implicature_graph',],
+  get_set => 'fh',
 #  object_list => [ Lingua::FeatureMatrix::Implicature => 'implicatures' ],
 
   # Lingua::FeatureMatrix::FeatureClass (or subclass) objs
@@ -38,10 +39,28 @@ sub init {
 
   my $file = $args{file};
   if (not defined $file) {
-    croak "$class must be initialized with a 'file' => name key/value pair";
+    croak "$class must be initialized with a 'file' => name",
+      " or 'file' => filehandle key/value pair";
+  }
+  if (ref($file))  {
+      $self->Name('');
+      if (UNIVERSAL::isa($file, 'IO::Handle') or UNIVERSAL::isa($file, 'GLOB')) {
+	  $self->fh($file);
+      }
+      else {
+	  croak "file handed in is a ", ref($file),
+	    " and apparently not a descendant of IO::Handle!";
+      }
+  }
+  else {
+      $self->Name( $file );
+      require IO::File;
+      # open the filehandle
+      my $fh = IO::File->new($file) or croak "couldn't open $file: $!\n";
+      $self->fh($fh);
   }
 
-  $self->Name( $file );
+
 
   if ($args{report}) {
     $self->report($args{report});
@@ -87,7 +106,7 @@ sub init {
 
   # TO DO: add other more direct ways to initialize dynamically if
   # needed
-  $self->_loadFile($file);
+  $self->_loadFile(); #$file);
 
   # fill out any features based on implicatures
   $self->_completeSpecifications();
@@ -104,10 +123,10 @@ sub _setEmeType {
   }
 
   # make sure that the class specified is loadable
-  eval "require $emeType";
-  if ($@) {
-    croak "trouble loading $emeType: $@; exiting";
-  }
+#   eval "require $emeType";
+#   if ($@) {
+#     croak "trouble loading $emeType: $@; exiting";
+#   }
   if (not $emeType->isa('Lingua::FeatureMatrix::Eme')) {
       croak "$emeType (provided as 'eme' parameter to $class)" .
 	  " is not a Lingua::FeatureMatrix::Eme!\n";
@@ -179,15 +198,18 @@ sub _setFeatureClass {
 sub _loadFile {
   # grabs all lines from config file, strips comments and spaces
   my $self = shift;
-  my $file = shift;
+  my $file = $self->Name();
 
-  open(IN,$file) or die "cannot open $file $!\n";
+#   open(IN,$file) or die "cannot open $file $!\n";
 
+  my $fh = $self->fh();
   # sort data into maps, eme-specifications, and class-specifications
 
-  while (<IN>) {
+  while (<$fh>) {
     # clean up lines
     chomp;
+    $_ = set_utf($_);
+    tr/\x{FEFF}//d;
     next if /^#/; # drop comments
     s/\s//g;      # and spaces
     next if not length($_);  # and skip blank lines
@@ -213,7 +235,8 @@ sub _loadFile {
       die "datafile $file has bad format in line $., '$_'\n";
     }
   }
-  close (IN) or die "can't close file $file $!\n";
+  close $fh or croak "couldn't close file ", $self->Name();
+#  close (IN) or die "can't close file $file $!\n";
 }
 ##################################################################
 sub _readImplicature {
@@ -510,6 +533,12 @@ sub dumpToText {
   }
 
   return join ("\n", @text);
+}
+##################################################################
+sub set_utf {
+    # thanks to perlmonks' grantm
+    # (http://www.perlmonks.org/index.pl?node=grantm) for saving me
+    return pack "U0a*", join '', @_;
 }
 ##################################################################
 1;
@@ -1000,6 +1029,14 @@ L</Motivation>.
 =item improved testing
 
 =item restructured implicatures (now stored as a Graph not a list)
+
+=back
+
+=item 0.05
+
+=over
+
+=item now can hand in a filehandle or a file to the file argument
 
 =back
 
