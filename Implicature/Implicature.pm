@@ -14,7 +14,7 @@ use Class::MethodMaker
 
 #  hash => [ qw [ implier implicant ] ];
 use Lingua::FeatureMatrix::Eme;
-
+##################################################################
 sub init {
   my $self = shift;
   my %implier = %{shift @_};
@@ -65,6 +65,36 @@ sub matches {
     }
   }
   return 1;
+}
+##################################################################
+sub dependsOn {
+  # check to see if $other's implicant shares any features with
+  # $self's implier. e.g.
+
+  #   other [ +high ] => [ +vow ]
+  #   self [ +vow ] => [ +voice ]
+
+  # since [vow] is in other's implicant, and in self's implier, self
+  # *does* depend on other
+
+  my $self = shift;
+  my Lingua::FeatureMatrix::Implicature $other = shift;
+
+  my @dependencies;
+  foreach my $feature( keys %{$self->implier} ) {
+    if (defined $other->implicant->{$feature}) {
+      my $action;
+      if ($other->implicant->{$feature} == $self->implier->{$feature}) {
+	$action = 'feeds';
+      }
+      else {
+	$action = 'bleeds';
+      }
+      # should this test "exists"?
+      push @dependencies, "$action ($feature)";
+    }
+  }
+  return @dependencies;
 }
 ##################################################################
 sub dumpToText {
@@ -179,7 +209,43 @@ a Lingua::FeatureMatrix.
 Handles a single implicature from a set of known features to provide
 new information for other features.
 
-See L<Lingua::FeatureMatrix>.
+=head1 Methods
+
+=head2 Class Methods
+
+=over
+
+=item new
+
+=back
+
+=head2 Instance Methods
+
+=over
+
+=item dependsOn
+
+takes another C<Lingua::FeatureMatrix::Implicature> as an
+argument. Returns whether the implicant (output) of the I<other>
+implicature could affect the implier (input) of this one.
+
+Used for rule-ordering.
+
+=item matches
+
+Takes a C<Lingua::FeatureMatrix::Eme> as an argument. Returns whether
+this implicature would apply to this eme (whether it matches the implier).
+
+=item apply
+
+Takes a C<Lingua::FeatureMatrix::Eme> as an argument. Sets its
+features according to the implicature's implicant.
+
+=back
+
+=head1 See Also
+
+L<Lingua::FeatureMatrix>.
 
 =head1 HISTORY
 

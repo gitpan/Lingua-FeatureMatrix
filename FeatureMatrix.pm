@@ -3,11 +3,11 @@ package Lingua::FeatureMatrix;
 use 5.006;
 use strict;
 use warnings;
-
+use Graph::Directed;
 use Carp;
 ##################################################################
 # package globals
-our $VERSION = '0.03';
+our $VERSION = '0.04';
 ##################################################################
 # data methods install using Class::MM
 use Class::MethodMaker
@@ -16,8 +16,11 @@ use Class::MethodMaker
   get_set => [ qw [ _emeType _featureClassType ],
 	       qw [_eme_new_opts _fclass_new_opts ] ],
 
+  get_set => [ 'report', 'graph' ],
+
   get_set => 'Name',
-  object_list => [ Lingua::FeatureMatrix::Implicature => 'implicatures' ],
+  object => [ Graph::Directed => 'implicature_graph' ],
+#  object_list => [ Lingua::FeatureMatrix::Implicature => 'implicatures' ],
 
   # Lingua::FeatureMatrix::FeatureClass (or subclass) objs
   hash => 'featureClasses',
@@ -39,6 +42,37 @@ sub init {
   }
 
   $self->Name( $file );
+
+  if ($args{report}) {
+    $self->report($args{report});
+  }
+  else {
+    $self->report('');
+  }
+
+  if ($args{graph}) {
+    $self->graph($args{graph});
+  }
+  else {
+    $self->graph('down');
+  }
+
+  $self->implicature_graph( Graph::Directed->new() );
+  if ($self->graph eq 'down') {
+    $self->implicature_graph->set_attribute(label =>
+					    'Feeding and Bleeding ' .
+					    'relationships');
+  }
+  elsif ($self->graph eq 'up') {
+    $self->implicature_graph->set_attribute(label =>
+					    'Possible but ignored feeding ' .
+					    'and bleeding relationships');
+  }
+  else {
+    warn "don't know what the 'graph' parameter " .
+      $self->graph() . " means\n";
+  }
+  $self->implicature_graph->set_attribute(ratio => 1);
 
   # set up to know which subclasses to use:
 
@@ -161,7 +195,7 @@ sub _loadFile {
     # TO DO: eval the following block, and trap errors. Report them
     # with line numbers for the user
 
-    if (/^ \( (.*) \=\> (.*) \) $/x) {
+    if (/^ \( (.+) \=\> (.+) \) $/x) {
       #  ( +vow => +son )
       #  ( +cons => *tense )
       $self->_readImplicature($1, $2);
@@ -196,7 +230,7 @@ sub _readImplicature {
   my $implicature =
     Lingua::FeatureMatrix::Implicature->new(\%implier, \%implicant);
 
-  $self->implicatures_push($implicature);
+  $self->add_implicature($implicature);
 }
 ##################################################################
 sub _readClass {
@@ -236,9 +270,73 @@ sub _readEme {
   $self->emes($symbol => $eme);
 }
 ##################################################################
+sub add_implicature {
+  my $self = shift;
+  my Lingua::FeatureMatrix::Implicature $impl = shift;
+#   $self->implicature_graph(
+  my (@otherIndices) =
+#    map {$self->implicature_graph->get_attribute('object', $_)}
+      $self->implicature_graph->vertices();
+  my $insert_index = scalar (@otherIndices);
+
+  $self->implicature_graph->add_vertex($insert_index);
+  # add a bunch of details about this object:
+
+  # machine-readable 'object'
+  $self->implicature_graph->set_attribute(object => $insert_index,
+					  $impl);
+  # human-readable 'label'
+  $self->implicature_graph->set_attribute(label => $insert_index,
+					  $impl->dumpToText);
+
+  # see how this new implicature fits into the dependency (ordering).
+  foreach my $otherIdx (@otherIndices) {
+    # yes, we have an n-squared scaling here. Tens of thousands of
+    # rules will have problems, but hundreds should still only take
+    # seconds, maximum. I hope. Don't really know how to build this
+    # graph any other way... :-/
+
+    my $other =
+      $self->implicature_graph->get_attribute(object => $otherIdx);
+
+    my (@inDeps) = $impl->dependsOn($other);
+    my (@outDeps) = $other->dependsOn($impl);
+
+    if (@inDeps) {
+      if ($self->graph =~ /down/) {
+	$self->implicature_graph->add_edge($otherIdx, $insert_index);
+	$self->implicature_graph->set_attribute( label =>
+						 $otherIdx, $insert_index,
+						 (join " ", @inDeps));
+      }
+    }
+    if (@outDeps) {
+      # these are dependencies that suggest that it *could* have
+      # bled/fed rules higher up in the ordering.
+      if ($self->graph =~ /up/) {
+	$self->implicature_graph->add_edge($insert_index, $otherIdx);
+	$self->implicature_graph->set_attribute( label =>
+						 $insert_index, $otherIdx,
+						 (join " ", @outDeps));
+      }
+      if ($self->report() eq 'back-dependencies') {
+	carp $impl->dumpToText(), "(implicature number $insert_index)",
+	  " could have been applied before ", $other->dumpToText(),
+	    " (implicature number $otherIdx)",
+	      " despite their input in the other order.";
+      }
+    }
+  } #end foreach otheridx
+
+
+}
+##################################################################
 sub _completeSpecifications {
 
   my $self = shift;
+
+#   my $ordered_impls =
+#     Lingua::FeatureMatrix::Implicature->order
 
 #    {
 #     my @ordered =
@@ -247,10 +345,13 @@ sub _completeSpecifications {
 #     $self->implicatures_push(@ordered);
 #   }
 
+  my (@orderedImpls) = $self->orderImplicatures();
+
   foreach my $emeName (sort $self->emes_keys) {
 
     my $eme = $self->emes($emeName);
-    foreach my $implicature ($self->implicatures) {
+    # future might consider a toposort here...
+    foreach my $implicature (@orderedImpls) {
       if ( $implicature->matches( $eme ) ) {
 	$implicature->apply( $eme );
       }
@@ -332,6 +433,30 @@ sub listFeatureClassMembers {
       }
     }
     return @symbols;
+}
+##################################################################
+sub orderImplicatures {
+  # return "ordered" list of implicatures.
+  my $self = shift;
+
+  # "By Any Means Necessary" --Malcolm X
+
+
+  return
+    map {$self->implicature_graph->get_attribute('object',$_)}
+      sort { $a <=> $b } $self->implicature_graph->vertices();
+
+  # Schwartzian Transform is a good means.
+#     map {$_->[0]}                  # (3) strip sort index
+#       sort { $a->[1] <=> $b->[1] } # (2) sort items by the sort index
+# 	map { [$_ =>               # (1) get a sort index for each
+# 	       $self->implicature_graph->get_attribute('insert_index', $_)] }
+# 	  $self->implicature_graph->vertices();
+
+
+  # future improvements will include a toposort call.
+
+
 }
 ##################################################################
 sub findEquivalentEmes {
@@ -515,6 +640,10 @@ TO DO: complete documentation for these methods
 =item findEquivalentEmes
 
 =item dumpToText
+
+=item add_implicature
+
+=item implicature_graph
 
 =back
 
@@ -745,6 +874,8 @@ order that they are submitted to the system.  Future editions may
 involve automatic ordering of the implicatures (see L</Future
 Improvements>).
 
+See L<Lingua::FeatureMatrix::Implicature>.
+
 =item Feature classes
 
   class AFF => [ +stop +fric ]
@@ -862,7 +993,21 @@ L</Motivation>.
 
 =back
 
+=item 0.04
+
+=over
+
+=item improved testing
+
+=item restructured implicatures (now stored as a Graph not a list)
+
 =back
+
+=back
+
+If you find any bugs or need additional features, please inform the
+author -- and check CPAN; this module is under development and may
+have recently added the feature you need.
 
 =head1 Further reading
 
