@@ -1,0 +1,188 @@
+# (any line beginning with an octothorpe/sharp/pound-sign is a
+# comment, but the octothorpe'd better be on the first line)
+
+# This configuration defines the phoneset of English, using
+# (roughly) the DARPAbet as our phone symbols
+
+# implicatures
+
+# note that although some of the implicatures are language universal,
+# most of these are specific to English.
+
+( +front => +vow )
+( +back => +vow )
+( +high => [ +vow -cons ] )
+( +low => [ +vow -cons ] )
+( +tense => +vow )
+( -tense => +vow )
+
+( +vow => [+voice +son] )
+( +vow => [ *stop *fric *sib *nas *liq *lab *pal ] )
+
+( +stop => [ +cons -son -vow -nas -sib ] )
+( +fric => [ +cons -son -vow -nas ] )
+
+( +nas => [+voice +son] )
+( +liq => [+voice +son] )
+
+( +nas => +cons )
+( +lab => [ +cons -sib -liq -pal ] )
+
+# no labial affricates in English, also no labiodental stops
+( [+lab +stop] => [-fric] )
+( [+lab +stop -fric] => [-dent] )
+
+# furthermore, labial fricatives are actually labiodental
+( [+lab +fric] => [ +dent ])
+
+# no alveolar affricates
+( [+alv +stop] => [-fric] )
+
+( +dent => +cons )
+( +vel => +cons )
+( +alv => [ +cons *liq -dent ] )
+
+( +pal => +cons )
+( +fric => +cons )
+( +liq => +cons )
+
+( +front => -back )
+( +back => -front )
+# but -front doesn't imply +back
+
+# star here indicates "ungrammatical" for a given feature
+( +cons => [ *tense *high *low ] )
+( +vow => [ *vel *alv *stop *fric *liq *dent ] )
+
+( +low => -high )
+( +high => -low )
+
+# labials are not velar, alveolar, or palatal
+( [ +lab ] => [ -vel -alv -pal])
+# alveolars are not labial, velar, palatal
+( [ +alv ] => [ -lab -vel -pal ])
+
+# vowels and glides are the only ones what can talk about front and back
+( [ -vow ] => [ *front *back ])
+
+
+    AA  [ +back +low -tense ]
+    AE  [ +front +low +tense ]
+    AO  [ -front -back +low -tense ]
+
+    P [ +stop -voice +lab ]
+
+    W [ +cons +back ]
+    Y [ +cons +front ]
+
+    B [ +stop +voice +lab ]
+    F [ -stop +fric +lab -voice ]
+
+    T [ +stop -voice +alv ]
+
+#    d [ +stop +voice +alv ]
+
+#    k [ +stop -voice +vel ]
+
+#    g [ +stop +voice +vel ]
+
+#    C [ +stop +fric -voice ]
+
+#    J [ +stop +fric +voice ]
+
+#    j [ +vow +cons +front ]
+
+#    f [ +fric +lab -voice ]
+
+#    v [ +fric +lab +voice ]
+
+#    T [ +fric +dent -voice ]
+
+#    D [ +fric +dent +voice ]
+
+#    s [ +fric +alv -voice ]
+
+#    z [ +fric +alv +voice ]
+
+#    S [ +fric +pal -voice ]
+
+#    Z [ +fric +pal +voice ]
+
+#    m [ +nas +lab ]
+
+#    n [ +nas +alv ]
+
+#    N [ +nas +vel ]
+
+#    l [ +liq +lat ]
+
+#    w [ +vow +cons +lab +back ]
+
+#    y [ +vow +cons +pal +front ]
+
+#    h [ +cons -voice ]
+
+
+# filters to use in accessing these features by feature-class
+
+class VOW => [ +vow ]
+
+class VOW_PRI => [ +vow +degree ]
+
+# class VOW_SEC => [ +vow +stress -degree ]
+
+# class VOW_UNSTR => [ +vow -stress ]
+
+class CONS => [ +cons ]
+
+class STOP => [ +stop ]
+
+class VCD => [ +voice ]
+
+class VCL => [ -voice ]
+
+class CONS_VCD => [ +cons +voice ]
+
+class CONS_VLS => [ +cons -voice ]
+
+class CONS_SON => [ +cons +son ]
+
+class FRIC => [ +fric ]
+
+class FRIC_VCD  => [ +fric +voice ]
+
+class FRIC_VLS  => [ +fric -voice ]
+
+class O_STOP => [ +stop -nas ]
+
+class O_STOP_VCD => [ +stop -nas +voice ]
+
+class O_STOP_VLS => [ +stop -nas -voice ]
+
+#class STOP_AFF => [ +stop +fric ]
+
+#class FRIC_AFF => [ +stop +fric ]
+
+class AFF => [ +stop +fric ]
+
+class AFF_VCD => [ +stop +fric +voice ]
+
+class AFF_VLS => [ +stop +fric -voice ]
+
+class NASAL => [ +nas ]
+
+class LIQUID => [ +liq ]
+
+class GLIDE => [ +cons +vow ]
+
+#  VOWELS VOWELS_PRI VOWELS_SEC VOWELS_UNSTR ] ],
+
+#   boolean => [ qw[ CONS CONS_VCD CONS_SON CONS_VLS FRIC FRIC_VCD FRIC_VLS ] ],
+#   boolean => [ qw [ O_STOP O_STOP_VCD O_STOP_VLS STOP_AFF FRIC_AFF ] ],
+#   boolean => [ qw [ FRIC_AFF_VCD FRIC_AFF_VLS SIB SIB_VCD SIB_VLS ] ],
+
+#   boolean => [ qw [ NASAL LIQUID RHOTIC ] ],
+
+#   # vowel clusters (grouping stress-marked vowels)
+#   boolean => [ qw[ ALL_A ALL_{ ALL_V ALL_O ALL_6 ALL_3 ALL_2 ALL_E ALL_e ] ],
+#   boolean => [  'ALL_I', 'ALL_x', qw ( ALL_i ALL_o ALL_4 ALL_U ALL_u ) ];
